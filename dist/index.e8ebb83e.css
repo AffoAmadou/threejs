@@ -1,0 +1,26 @@
+canvas{display: block}
+#container{
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    z-index: 1;
+    top: 0;
+    left: 0;
+
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+   body{
+       color: white;
+   }
+
+    a .image{
+        width: 30vw;
+        /* height: 30vw; */
+        opacity: 0.1;
+    }
+/*# sourceMappingURL=index.e8ebb83e.css.map */
