@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import vertex from '../js/vertex.glsl';
 import fragment from '../js/fragment.glsl';
+import imagesLoaded from 'imagesloaded';
+import FontFaceObserver from 'fontfaceobserver';
+import Scroll from '../js/scroll.js'
 
 export default class Sketch {
 
@@ -29,21 +32,55 @@ export default class Sketch {
 
         this.images = [...document.querySelectorAll('.image')];
 
+        //Questo per  caricare  fotot e font 
+        // const fontOpen = new Promise(resolve => {
+        //     new FontFaceObserver("Open Sans").load().then(() => {
+        //         resolve();
+        //     });
+        // });
 
-        this.addImages();
-        this.setPosion();
-        this.time = 0;
-        this.resize();
-        this.addObjects();
-        this.render();
-        this.setupResize()
+        // const fontPlayfair = new Promise(resolve => {
+        //     new FontFaceObserver("Playfair Display").load().then(() => {
+        //         resolve();
+        //     });
+        // });
+
+        //IMPORTANTE     // let allDone = [fontOpen, fontPlayfair, preloadImages];
+
+        // Preload images
+        const preloadImages = new Promise((resolve, reject) => {
+            imagesLoaded(document.querySelectorAll("img"), { background: true }, resolve);
+        });
+
+
+        let allDone = [preloadImages];
+        this.currentScroll = 0;
+
+        Promise.all(allDone).then(() => {
+            this.scroll = new Scroll();
+            this.addImages();
+            this.setPosition();
+            this.time = 0;
+            this.resize();
+            // this.addObjects();
+            this.setupResize()
+            this.render();
+
+            // window.addEventListener('scroll', () => {
+            //     this.currentScroll = window.scrollY;
+            //     this.setPosition();
+
+            // })
+
+        })
+
+
     }
 
-    setPosion()
-    {
-        this.imageStore.forEach(o=>{
-            o.mesh.position.y=-o.top + this.height/2 - o.height/2;
-            o.mesh.position.x= o.left - this.width/2 + o.width/2;
+    setPosition() {
+        this.imageStore.forEach(o => {
+            o.mesh.position.y = this.currentScroll - o.top + this.height / 2 - o.height / 2;
+            o.mesh.position.x = o.left - this.width / 2 + o.width / 2;
         })
     }
     addImages() {
@@ -54,12 +91,13 @@ export default class Sketch {
 
             let geometry = new THREE.PlaneBufferGeometry(bounds.width, bounds.height, 1, 1);
 
-            let texture =  new THREE.Texture(image);
+            let texture = new THREE.Texture(image);
             texture.needsUpdate = true;
 
 
-            let material = new THREE.MeshBasicMaterial({ 
-            map: texture });
+            let material = new THREE.MeshBasicMaterial({
+                map: texture
+            });
 
             let mesh = new THREE.Mesh(geometry, material);
 
@@ -74,7 +112,7 @@ export default class Sketch {
                 height: bounds.height
             }
         })
-console.log(this.imageStore);
+        console.log(this.imageStore);
 
     }
     resize() {
@@ -103,9 +141,13 @@ console.log(this.imageStore);
     }
     render() {
         this.time += 0.05;
+        
+        this.scroll.render();
+        this.currentScroll = this.scroll.scrollToRender;
+        this.setPosition();
 
-        this.mesh.rotation.x = this.time / 2000;
-        this.mesh.rotation.y = this.time / 1000;
+        // this.mesh.rotation.x = this.time / 2000;
+        // this.mesh.rotation.y = this.time / 1000;
 
         this.renderer.render(this.scene, this.camera);
 

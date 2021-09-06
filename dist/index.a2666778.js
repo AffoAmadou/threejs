@@ -463,6 +463,12 @@ var _vertexGlsl = require("../js/vertex.glsl");
 var _vertexGlslDefault = parcelHelpers.interopDefault(_vertexGlsl);
 var _fragmentGlsl = require("../js/fragment.glsl");
 var _fragmentGlslDefault = parcelHelpers.interopDefault(_fragmentGlsl);
+var _imagesloaded = require("imagesloaded");
+var _imagesloadedDefault = parcelHelpers.interopDefault(_imagesloaded);
+var _fontfaceobserver = require("fontfaceobserver");
+var _fontfaceobserverDefault = parcelHelpers.interopDefault(_fontfaceobserver);
+var _scrollJs = require("../js/scroll.js");
+var _scrollJsDefault = parcelHelpers.interopDefault(_scrollJs);
 class Sketch {
     constructor(options){
         this.container = options.domElement;
@@ -484,17 +490,46 @@ class Sketch {
         this.images = [
             ...document.querySelectorAll('.image')
         ];
-        this.addImages();
-        this.setPosion();
-        this.time = 0;
-        this.resize();
-        this.addObjects();
-        this.render();
-        this.setupResize();
+        //Questo per  caricare  fotot e font 
+        // const fontOpen = new Promise(resolve => {
+        //     new FontFaceObserver("Open Sans").load().then(() => {
+        //         resolve();
+        //     });
+        // });
+        // const fontPlayfair = new Promise(resolve => {
+        //     new FontFaceObserver("Playfair Display").load().then(() => {
+        //         resolve();
+        //     });
+        // });
+        //IMPORTANTE     // let allDone = [fontOpen, fontPlayfair, preloadImages];
+        // Preload images
+        const preloadImages = new Promise((resolve, reject)=>{
+            _imagesloadedDefault.default(document.querySelectorAll("img"), {
+                background: true
+            }, resolve);
+        });
+        let allDone = [
+            preloadImages
+        ];
+        this.currentScroll = 0;
+        Promise.all(allDone).then(()=>{
+            this.scroll = new _scrollJsDefault.default();
+            this.addImages();
+            this.setPosition();
+            this.time = 0;
+            this.resize();
+            // this.addObjects();
+            this.setupResize();
+            this.render();
+        // window.addEventListener('scroll', () => {
+        //     this.currentScroll = window.scrollY;
+        //     this.setPosition();
+        // })
+        });
     }
-    setPosion() {
+    setPosition() {
         this.imageStore.forEach((o)=>{
-            o.mesh.position.y = -o.top + this.height / 2 - o.height / 2;
+            o.mesh.position.y = this.currentScroll - o.top + this.height / 2 - o.height / 2;
             o.mesh.position.x = o.left - this.width / 2 + o.width / 2;
         });
     }
@@ -543,8 +578,11 @@ class Sketch {
     }
     render() {
         this.time += 0.05;
-        this.mesh.rotation.x = this.time / 2000;
-        this.mesh.rotation.y = this.time / 1000;
+        this.scroll.render();
+        this.currentScroll = this.scroll.scrollToRender;
+        this.setPosition();
+        // this.mesh.rotation.x = this.time / 2000;
+        // this.mesh.rotation.y = this.time / 1000;
         this.renderer.render(this.scene, this.camera);
         requestAnimationFrame(this.render.bind(this));
     }
@@ -554,7 +592,7 @@ new Sketch({
     domElement: document.getElementById('container')
 });
 
-},{"three":"1AKvZ","three/examples/jsm/controls/OrbitControls.js":"fPaua","../js/vertex.glsl":"88it9","../js/fragment.glsl":"jTq8X","@parcel/transformer-js/src/esmodule-helpers.js":"gr654"}],"1AKvZ":[function(require,module,exports) {
+},{"three":"1AKvZ","three/examples/jsm/controls/OrbitControls.js":"fPaua","../js/vertex.glsl":"88it9","../js/fragment.glsl":"jTq8X","imagesloaded":"YB3en","fontfaceobserver":"9ssKy","@parcel/transformer-js/src/esmodule-helpers.js":"gr654","../js/scroll.js":"cXLIX"}],"1AKvZ":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "ACESFilmicToneMapping", ()=>ACESFilmicToneMapping
@@ -30971,6 +31009,609 @@ module.exports = "#define GLSLIFY 1\nvoid main() {\n      \n\n      vec4 modelVi
 },{}],"jTq8X":[function(require,module,exports) {
 module.exports = "#define GLSLIFY 1\nvoid main() {\n        gl_FragColor = vec4(1.,0.,1.,1.);\n      }";
 
-},{}]},["2ybgt","4kqQn"], "4kqQn", "parcelRequire94c2")
+},{}],"YB3en":[function(require,module,exports) {
+/*!
+ * imagesLoaded v4.1.4
+ * JavaScript is all like "You images are done yet or what?"
+ * MIT License
+ */ (function(window, factory) {
+    // universal module definition
+    /*global define: false, module: false, require: false */ if (typeof define == 'function' && define.amd) // AMD
+    define([
+        'ev-emitter/ev-emitter'
+    ], function(EvEmitter) {
+        return factory(window, EvEmitter);
+    });
+    else if (typeof module == 'object' && module.exports) // CommonJS
+    module.exports = factory(window, require('ev-emitter'));
+    else // browser global
+    window.imagesLoaded = factory(window, window.EvEmitter);
+})(typeof window !== 'undefined' ? window : this, // --------------------------  factory -------------------------- //
+function factory(window, EvEmitter) {
+    'use strict';
+    var $ = window.jQuery;
+    var console = window.console;
+    // -------------------------- helpers -------------------------- //
+    // extend objects
+    function extend(a, b) {
+        for(var prop in b)a[prop] = b[prop];
+        return a;
+    }
+    var arraySlice = Array.prototype.slice;
+    // turn element or nodeList into an array
+    function makeArray(obj) {
+        if (Array.isArray(obj)) // use object if already an array
+        return obj;
+        var isArrayLike = typeof obj == 'object' && typeof obj.length == 'number';
+        if (isArrayLike) // convert nodeList to array
+        return arraySlice.call(obj);
+        // array of single index
+        return [
+            obj
+        ];
+    }
+    // -------------------------- imagesLoaded -------------------------- //
+    /**
+ * @param {Array, Element, NodeList, String} elem
+ * @param {Object or Function} options - if function, use as callback
+ * @param {Function} onAlways - callback function
+ */ function ImagesLoaded(elem, options, onAlways) {
+        // coerce ImagesLoaded() without new, to be new ImagesLoaded()
+        if (!(this instanceof ImagesLoaded)) return new ImagesLoaded(elem, options, onAlways);
+        // use elem as selector string
+        var queryElem = elem;
+        if (typeof elem == 'string') queryElem = document.querySelectorAll(elem);
+        // bail if bad element
+        if (!queryElem) {
+            console.error('Bad element for imagesLoaded ' + (queryElem || elem));
+            return;
+        }
+        this.elements = makeArray(queryElem);
+        this.options = extend({
+        }, this.options);
+        // shift arguments if no options set
+        if (typeof options == 'function') onAlways = options;
+        else extend(this.options, options);
+        if (onAlways) this.on('always', onAlways);
+        this.getImages();
+        if ($) // add jQuery Deferred object
+        this.jqDeferred = new $.Deferred();
+        // HACK check async to allow time to bind listeners
+        setTimeout(this.check.bind(this));
+    }
+    ImagesLoaded.prototype = Object.create(EvEmitter.prototype);
+    ImagesLoaded.prototype.options = {
+    };
+    ImagesLoaded.prototype.getImages = function() {
+        this.images = [];
+        // filter & find items if we have an item selector
+        this.elements.forEach(this.addElementImages, this);
+    };
+    /**
+ * @param {Node} element
+ */ ImagesLoaded.prototype.addElementImages = function(elem) {
+        // filter siblings
+        if (elem.nodeName == 'IMG') this.addImage(elem);
+        // get background image on element
+        if (this.options.background === true) this.addElementBackgroundImages(elem);
+        // find children
+        // no non-element nodes, #143
+        var nodeType = elem.nodeType;
+        if (!nodeType || !elementNodeTypes[nodeType]) return;
+        var childImgs = elem.querySelectorAll('img');
+        // concat childElems to filterFound array
+        for(var i = 0; i < childImgs.length; i++){
+            var img = childImgs[i];
+            this.addImage(img);
+        }
+        // get child background images
+        if (typeof this.options.background == 'string') {
+            var children = elem.querySelectorAll(this.options.background);
+            for(i = 0; i < children.length; i++){
+                var child = children[i];
+                this.addElementBackgroundImages(child);
+            }
+        }
+    };
+    var elementNodeTypes = {
+        1: true,
+        9: true,
+        11: true
+    };
+    ImagesLoaded.prototype.addElementBackgroundImages = function(elem) {
+        var style = getComputedStyle(elem);
+        if (!style) // Firefox returns null if in a hidden iframe https://bugzil.la/548397
+        return;
+        // get url inside url("...")
+        var reURL = /url\((['"])?(.*?)\1\)/gi;
+        var matches = reURL.exec(style.backgroundImage);
+        while(matches !== null){
+            var url = matches && matches[2];
+            if (url) this.addBackground(url, elem);
+            matches = reURL.exec(style.backgroundImage);
+        }
+    };
+    /**
+ * @param {Image} img
+ */ ImagesLoaded.prototype.addImage = function(img) {
+        var loadingImage = new LoadingImage(img);
+        this.images.push(loadingImage);
+    };
+    ImagesLoaded.prototype.addBackground = function(url, elem) {
+        var background = new Background(url, elem);
+        this.images.push(background);
+    };
+    ImagesLoaded.prototype.check = function() {
+        var _this = this;
+        this.progressedCount = 0;
+        this.hasAnyBroken = false;
+        // complete if no images
+        if (!this.images.length) {
+            this.complete();
+            return;
+        }
+        function onProgress(image, elem, message) {
+            // HACK - Chrome triggers event before object properties have changed. #83
+            setTimeout(function() {
+                _this.progress(image, elem, message);
+            });
+        }
+        this.images.forEach(function(loadingImage) {
+            loadingImage.once('progress', onProgress);
+            loadingImage.check();
+        });
+    };
+    ImagesLoaded.prototype.progress = function(image, elem, message) {
+        this.progressedCount++;
+        this.hasAnyBroken = this.hasAnyBroken || !image.isLoaded;
+        // progress event
+        this.emitEvent('progress', [
+            this,
+            image,
+            elem
+        ]);
+        if (this.jqDeferred && this.jqDeferred.notify) this.jqDeferred.notify(this, image);
+        // check if completed
+        if (this.progressedCount == this.images.length) this.complete();
+        if (this.options.debug && console) console.log('progress: ' + message, image, elem);
+    };
+    ImagesLoaded.prototype.complete = function() {
+        var eventName = this.hasAnyBroken ? 'fail' : 'done';
+        this.isComplete = true;
+        this.emitEvent(eventName, [
+            this
+        ]);
+        this.emitEvent('always', [
+            this
+        ]);
+        if (this.jqDeferred) {
+            var jqMethod = this.hasAnyBroken ? 'reject' : 'resolve';
+            this.jqDeferred[jqMethod](this);
+        }
+    };
+    // --------------------------  -------------------------- //
+    function LoadingImage(img) {
+        this.img = img;
+    }
+    LoadingImage.prototype = Object.create(EvEmitter.prototype);
+    LoadingImage.prototype.check = function() {
+        // If complete is true and browser supports natural sizes,
+        // try to check for image status manually.
+        var isComplete = this.getIsImageComplete();
+        if (isComplete) {
+            // report based on naturalWidth
+            this.confirm(this.img.naturalWidth !== 0, 'naturalWidth');
+            return;
+        }
+        // If none of the checks above matched, simulate loading on detached element.
+        this.proxyImage = new Image();
+        this.proxyImage.addEventListener('load', this);
+        this.proxyImage.addEventListener('error', this);
+        // bind to image as well for Firefox. #191
+        this.img.addEventListener('load', this);
+        this.img.addEventListener('error', this);
+        this.proxyImage.src = this.img.src;
+    };
+    LoadingImage.prototype.getIsImageComplete = function() {
+        // check for non-zero, non-undefined naturalWidth
+        // fixes Safari+InfiniteScroll+Masonry bug infinite-scroll#671
+        return this.img.complete && this.img.naturalWidth;
+    };
+    LoadingImage.prototype.confirm = function(isLoaded, message) {
+        this.isLoaded = isLoaded;
+        this.emitEvent('progress', [
+            this,
+            this.img,
+            message
+        ]);
+    };
+    // ----- events ----- //
+    // trigger specified handler for event type
+    LoadingImage.prototype.handleEvent = function(event) {
+        var method = 'on' + event.type;
+        if (this[method]) this[method](event);
+    };
+    LoadingImage.prototype.onload = function() {
+        this.confirm(true, 'onload');
+        this.unbindEvents();
+    };
+    LoadingImage.prototype.onerror = function() {
+        this.confirm(false, 'onerror');
+        this.unbindEvents();
+    };
+    LoadingImage.prototype.unbindEvents = function() {
+        this.proxyImage.removeEventListener('load', this);
+        this.proxyImage.removeEventListener('error', this);
+        this.img.removeEventListener('load', this);
+        this.img.removeEventListener('error', this);
+    };
+    // -------------------------- Background -------------------------- //
+    function Background(url, element) {
+        this.url = url;
+        this.element = element;
+        this.img = new Image();
+    }
+    // inherit LoadingImage prototype
+    Background.prototype = Object.create(LoadingImage.prototype);
+    Background.prototype.check = function() {
+        this.img.addEventListener('load', this);
+        this.img.addEventListener('error', this);
+        this.img.src = this.url;
+        // check if image is already complete
+        var isComplete = this.getIsImageComplete();
+        if (isComplete) {
+            this.confirm(this.img.naturalWidth !== 0, 'naturalWidth');
+            this.unbindEvents();
+        }
+    };
+    Background.prototype.unbindEvents = function() {
+        this.img.removeEventListener('load', this);
+        this.img.removeEventListener('error', this);
+    };
+    Background.prototype.confirm = function(isLoaded, message) {
+        this.isLoaded = isLoaded;
+        this.emitEvent('progress', [
+            this,
+            this.element,
+            message
+        ]);
+    };
+    // -------------------------- jQuery -------------------------- //
+    ImagesLoaded.makeJQueryPlugin = function(jQuery) {
+        jQuery = jQuery || window.jQuery;
+        if (!jQuery) return;
+        // set local variable
+        $ = jQuery;
+        // $().imagesLoaded()
+        $.fn.imagesLoaded = function(options, callback) {
+            var instance = new ImagesLoaded(this, options, callback);
+            return instance.jqDeferred.promise($(this));
+        };
+    };
+    // try making plugin
+    ImagesLoaded.makeJQueryPlugin();
+    // --------------------------  -------------------------- //
+    return ImagesLoaded;
+});
+
+},{"ev-emitter":"5rw2i"}],"5rw2i":[function(require,module,exports) {
+(function(global, factory) {
+    // universal module definition
+    /* jshint strict: false */ /* globals define, module, window */ if (typeof define == 'function' && define.amd) // AMD - RequireJS
+    define(factory);
+    else if (typeof module == 'object' && module.exports) // CommonJS - Browserify, Webpack
+    module.exports = factory();
+    else // Browser globals
+    global.EvEmitter = factory();
+})(typeof window != 'undefined' ? window : this, function() {
+    "use strict";
+    function EvEmitter() {
+    }
+    var proto = EvEmitter.prototype;
+    proto.on = function(eventName, listener) {
+        if (!eventName || !listener) return;
+        // set events hash
+        var events = this._events = this._events || {
+        };
+        // set listeners array
+        var listeners = events[eventName] = events[eventName] || [];
+        // only add once
+        if (listeners.indexOf(listener) == -1) listeners.push(listener);
+        return this;
+    };
+    proto.once = function(eventName, listener) {
+        if (!eventName || !listener) return;
+        // add event
+        this.on(eventName, listener);
+        // set once flag
+        // set onceEvents hash
+        var onceEvents = this._onceEvents = this._onceEvents || {
+        };
+        // set onceListeners object
+        var onceListeners = onceEvents[eventName] = onceEvents[eventName] || {
+        };
+        // set flag
+        onceListeners[listener] = true;
+        return this;
+    };
+    proto.off = function(eventName, listener) {
+        var listeners = this._events && this._events[eventName];
+        if (!listeners || !listeners.length) return;
+        var index = listeners.indexOf(listener);
+        if (index != -1) listeners.splice(index, 1);
+        return this;
+    };
+    proto.emitEvent = function(eventName, args) {
+        var listeners = this._events && this._events[eventName];
+        if (!listeners || !listeners.length) return;
+        // copy over to avoid interference if .off() in listener
+        listeners = listeners.slice(0);
+        args = args || [];
+        // once stuff
+        var onceListeners = this._onceEvents && this._onceEvents[eventName];
+        for(var i = 0; i < listeners.length; i++){
+            var listener = listeners[i];
+            var isOnce = onceListeners && onceListeners[listener];
+            if (isOnce) {
+                // remove listener
+                // remove before trigger to prevent recursion
+                this.off(eventName, listener);
+                // unset once flag
+                delete onceListeners[listener];
+            }
+            // trigger listener
+            listener.apply(this, args);
+        }
+        return this;
+    };
+    proto.allOff = function() {
+        delete this._events;
+        delete this._onceEvents;
+    };
+    return EvEmitter;
+});
+
+},{}],"9ssKy":[function(require,module,exports) {
+(function() {
+    function l(a, b) {
+        document.addEventListener ? a.addEventListener("scroll", b, !1) : a.attachEvent("scroll", b);
+    }
+    function m(a) {
+        document.body ? a() : document.addEventListener ? document.addEventListener("DOMContentLoaded", function c() {
+            document.removeEventListener("DOMContentLoaded", c);
+            a();
+        }) : document.attachEvent("onreadystatechange", function k() {
+            if ("interactive" == document.readyState || "complete" == document.readyState) document.detachEvent("onreadystatechange", k), a();
+        });
+    }
+    function t(a) {
+        this.a = document.createElement("div");
+        this.a.setAttribute("aria-hidden", "true");
+        this.a.appendChild(document.createTextNode(a));
+        this.b = document.createElement("span");
+        this.c = document.createElement("span");
+        this.h = document.createElement("span");
+        this.f = document.createElement("span");
+        this.g = -1;
+        this.b.style.cssText = "max-width:none;display:inline-block;position:absolute;height:100%;width:100%;overflow:scroll;font-size:16px;";
+        this.c.style.cssText = "max-width:none;display:inline-block;position:absolute;height:100%;width:100%;overflow:scroll;font-size:16px;";
+        this.f.style.cssText = "max-width:none;display:inline-block;position:absolute;height:100%;width:100%;overflow:scroll;font-size:16px;";
+        this.h.style.cssText = "display:inline-block;width:200%;height:200%;font-size:16px;max-width:none;";
+        this.b.appendChild(this.h);
+        this.c.appendChild(this.f);
+        this.a.appendChild(this.b);
+        this.a.appendChild(this.c);
+    }
+    function u(a, b) {
+        a.a.style.cssText = "max-width:none;min-width:20px;min-height:20px;display:inline-block;overflow:hidden;position:absolute;width:auto;margin:0;padding:0;top:-999px;white-space:nowrap;font-synthesis:none;font:" + b + ";";
+    }
+    function z(a) {
+        var b = a.a.offsetWidth, c = b + 100;
+        a.f.style.width = c + "px";
+        a.c.scrollLeft = c;
+        a.b.scrollLeft = a.b.scrollWidth + 100;
+        return a.g !== b ? (a.g = b, !0) : !1;
+    }
+    function A(a, b) {
+        function c() {
+            var a1 = k;
+            z(a1) && a1.a.parentNode && b(a1.g);
+        }
+        var k = a;
+        l(a.b, c);
+        l(a.c, c);
+        z(a);
+    }
+    function B(a, b) {
+        var c = b || {
+        };
+        this.family = a;
+        this.style = c.style || "normal";
+        this.weight = c.weight || "normal";
+        this.stretch = c.stretch || "normal";
+    }
+    var C = null, D = null, E = null, F = null;
+    function G() {
+        if (null === D) {
+            if (J() && /Apple/.test(window.navigator.vendor)) {
+                var a = /AppleWebKit\/([0-9]+)(?:\.([0-9]+))(?:\.([0-9]+))/.exec(window.navigator.userAgent);
+                D = !!a && 603 > parseInt(a[1], 10);
+            } else D = !1;
+        }
+        return D;
+    }
+    function J() {
+        null === F && (F = !!document.fonts);
+        return F;
+    }
+    function K() {
+        if (null === E) {
+            var a = document.createElement("div");
+            try {
+                a.style.font = "condensed 100px sans-serif";
+            } catch (b) {
+            }
+            E = "" !== a.style.font;
+        }
+        return E;
+    }
+    function L(a, b) {
+        return [
+            a.style,
+            a.weight,
+            K() ? a.stretch : "",
+            "100px",
+            b
+        ].join(" ");
+    }
+    B.prototype.load = function(a, b) {
+        var c = this, k = a || "BESbswy", r = 0, n = b || 3000, H = (new Date).getTime();
+        return new Promise(function(a1, b1) {
+            if (J() && !G()) {
+                var M = new Promise(function(a2, b2) {
+                    function e() {
+                        (new Date).getTime() - H >= n ? b2(Error("" + n + "ms timeout exceeded")) : document.fonts.load(L(c, '"' + c.family + '"'), k).then(function(c1) {
+                            1 <= c1.length ? a2() : setTimeout(e, 25);
+                        }, b2);
+                    }
+                    e();
+                }), N = new Promise(function(a2, c1) {
+                    r = setTimeout(function() {
+                        c1(Error("" + n + "ms timeout exceeded"));
+                    }, n);
+                });
+                Promise.race([
+                    N,
+                    M
+                ]).then(function() {
+                    clearTimeout(r);
+                    a1(c);
+                }, b1);
+            } else m(function() {
+                function v() {
+                    var b2;
+                    if (b2 = -1 != f && -1 != g || -1 != f && -1 != h || -1 != g && -1 != h) (b2 = f != g && f != h && g != h) || (null === C && (b2 = /AppleWebKit\/([0-9]+)(?:\.([0-9]+))/.exec(window.navigator.userAgent), C = !!b2 && (536 > parseInt(b2[1], 10) || 536 === parseInt(b2[1], 10) && 11 >= parseInt(b2[2], 10))), b2 = C && (f == w && g == w && h == w || f == x && g == x && h == x || f == y && g == y && h == y)), b2 = !b2;
+                    b2 && (d.parentNode && d.parentNode.removeChild(d), clearTimeout(r), a1(c));
+                }
+                function I() {
+                    if ((new Date).getTime() - H >= n) d.parentNode && d.parentNode.removeChild(d), b1(Error("" + n + "ms timeout exceeded"));
+                    else {
+                        var a2 = document.hidden;
+                        if (!0 === a2 || (void 0) === a2) f = e.a.offsetWidth, g = p.a.offsetWidth, h = q.a.offsetWidth, v();
+                        r = setTimeout(I, 50);
+                    }
+                }
+                var e = new t(k), p = new t(k), q = new t(k), f = -1, g = -1, h = -1, w = -1, x = -1, y = -1, d = document.createElement("div");
+                d.dir = "ltr";
+                u(e, L(c, "sans-serif"));
+                u(p, L(c, "serif"));
+                u(q, L(c, "monospace"));
+                d.appendChild(e.a);
+                d.appendChild(p.a);
+                d.appendChild(q.a);
+                document.body.appendChild(d);
+                w = e.a.offsetWidth;
+                x = p.a.offsetWidth;
+                y = q.a.offsetWidth;
+                I();
+                A(e, function(a3) {
+                    f = a3;
+                    v();
+                });
+                u(e, L(c, '"' + c.family + '",sans-serif'));
+                A(p, function(a3) {
+                    g = a3;
+                    v();
+                });
+                u(p, L(c, '"' + c.family + '",serif'));
+                A(q, function(a3) {
+                    h = a3;
+                    v();
+                });
+                u(q, L(c, '"' + c.family + '",monospace'));
+            });
+        });
+    };
+    "object" === typeof module ? module.exports = B : (window.FontFaceObserver = B, window.FontFaceObserver.prototype.load = B.prototype.load);
+})();
+
+},{}],"cXLIX":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+const lerp = (a, b, n)=>(1 - n) * a + n * b
+;
+class Scroll {
+    constructor(){
+        this.DOM = {
+            main: document.querySelector("main")
+        };
+        // the scrollable element
+        // we translate this element when scrolling (y-axis)
+        this.DOM.scrollable = this.DOM.main.querySelector("div[data-scroll]");
+        this.docScroll = 0;
+        this.scrollToRender = 0;
+        this.current = 0;
+        this.ease = 0.1;
+        this.speed = 0;
+        this.speedTarget = 0;
+        // set the body's height
+        this.setSize();
+        // set the initial values
+        this.getScroll();
+        this.init();
+        // the <main> element's style needs to be modified
+        this.style();
+        // init/bind events
+        this.initEvents();
+        // start the render loop
+        requestAnimationFrame(()=>this.render()
+        );
+    }
+    init() {
+        // sets the initial value (no interpolation) - translate the scroll value
+        for(const key in this.renderedStyles)this.current = this.scrollToRender = this.getScroll();
+        // translate the scrollable element
+        this.setPosition();
+        this.shouldRender = true;
+    }
+    style() {
+        this.DOM.main.style.position = "fixed";
+        this.DOM.main.style.width = this.DOM.main.style.height = "100%";
+        this.DOM.main.style.top = this.DOM.main.style.left = 0;
+        this.DOM.main.style.overflow = "hidden";
+    }
+    getScroll() {
+        this.docScroll = window.pageYOffset || document.documentElement.scrollTop;
+        return this.docScroll;
+    }
+    initEvents() {
+        window.onbeforeunload = function() {
+            window.scrollTo(0, 0);
+        };
+        // on resize reset the body's height
+        window.addEventListener("resize", ()=>this.setSize()
+        );
+        window.addEventListener("scroll", this.getScroll.bind(this));
+    }
+    setSize() {
+        // set the heigh of the body in order to keep the scrollbar on the page
+        document.body.style.height = `${this.DOM.scrollable.scrollHeight}px`;
+    }
+    setPosition() {
+        // translates the scrollable element
+        if (Math.round(this.scrollToRender) !== Math.round(this.current) || this.scrollToRender < 10) this.DOM.scrollable.style.transform = `translate3d(0,${-1 * this.scrollToRender}px,0)`;
+    }
+    render() {
+        this.speed = Math.min(Math.abs(this.current - this.scrollToRender), 200) / 200;
+        this.speedTarget += (this.speed - this.speedTarget) * 0.2;
+        this.current = this.getScroll();
+        this.scrollToRender = lerp(this.scrollToRender, this.current, this.ease);
+        // and translate the scrollable element
+        this.setPosition();
+    }
+}
+exports.default = Scroll;
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gr654"}]},["2ybgt","4kqQn"], "4kqQn", "parcelRequire94c2")
 
 //# sourceMappingURL=index.a2666778.js.map
